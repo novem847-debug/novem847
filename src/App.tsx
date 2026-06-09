@@ -42,9 +42,10 @@ function App() {
       faceDetector = await FaceDetector.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/latest/blaze_face_short_range.tflite",
+            "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_back_camera/float16/latest/blaze_face_back_camera.tflite",
         },
         runningMode: "VIDEO",
+        minDetectionConfidence: 0.5,
       });
 
       detectFaces();
@@ -74,17 +75,30 @@ function App() {
       }
 
       const detections = faceDetector.detectForVideo(video, performance.now());
-      setFaces(detections.detections || []);
+      
+      // Filter detections by confidence
+      const filteredDetections = (detections.detections || []).filter(
+        (detection) => detection.categories[0]?.score >= 0.5
+      );
+      
+      setFaces(filteredDetections);
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      detections.detections?.forEach((detection) => {
+      filteredDetections?.forEach((detection) => {
         const box = detection.boundingBox;
         if (!box) return;
 
-        ctx.strokeStyle = "#00ff00";
+        // Only draw if confidence is high enough
+        const confidence = detection.categories[0]?.score ?? 0;
+        ctx.strokeStyle = confidence > 0.7 ? "#00ff00" : "#ffff00";
         ctx.lineWidth = 4;
         ctx.strokeRect(box.originX, box.originY, box.width, box.height);
+        
+        // Draw confidence score
+        ctx.fillStyle = ctx.strokeStyle;
+        ctx.font = "16px Arial";
+        ctx.fillText(`${(confidence * 100).toFixed(1)}%`, box.originX, box.originY - 5);
       });
 
       animationId = requestAnimationFrame(detectFaces);
